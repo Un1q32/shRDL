@@ -1,9 +1,16 @@
 #!/bin/sh
 
-case $1 in
-    http://*|https://*) set "${1%/}" && repodomain=${1#*//} ;;
-    *) printf "Usage: [SINGLETHREADED=1] %s <repo url>\n" "${0##*/}" ; exit 0 ;;
-esac
+while [ $# -gt 0 ]; do
+    case $1 in
+        --no-debs) nodebs=1 ;;
+        --single-threaded) singlethreaded=1 ;;
+        --jobs=*) jobs=${1#*=} ;;
+        --jobs) jobs=$2 && shift ;;
+        http://*|https://*) domain="${1%/}" && repodomain=${domain#*//} ;;
+        *) printf "Usage: %s [--no-debs] [--single-threaded] [--jobs=JOBS] <repo url>\n" "${0##*/}" ; exit 0 ;;
+    esac
+    shift
+done
 
 for dep in curl gzip bzip2; do
     if ! command -v $dep > /dev/null; then
@@ -21,10 +28,10 @@ headers4="User-Agent: Telesphoreo APT-HTTP/1.0.999"
 cd "$repodomain" || exit 1
 :> urllist.txt
 
-if [ "$(curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -w '%{http_code}' -L -s -o Packages.bz2 "$1/Packages.bz2")" -eq 200 ]; then
+if [ "$(curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -w '%{http_code}' -L -s -o Packages.bz2 "$domain/Packages.bz2")" -eq 200 ]; then
     archive=bz2
     prog=bzip2
-elif [ "$(curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -w '%{http_code}' -L -s -o Packages.gz "$1/Packages.gz")" -eq 200 ]; then
+elif [ "$(curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -w '%{http_code}' -L -s -o Packages.gz "$domain/Packages.gz")" -eq 200 ]; then
     archive=gz
     prog=gzip
     rm Packages.bz2
@@ -43,25 +50,27 @@ while read -r line; do
             case $deburl in
                 ./*) deburl=${deburl#./} ;;
             esac
-            printf "%s/%s\n" "$1" "$deburl" >> urllist.txt
+            printf '%s\n' "$domain/$deburl" >> urllist.txt
         ;;
     esac
 done < ./Packages
 
+[ -n "$nodebs" ] && exit 0
+
 [ ! -d debs ] && mkdir debs
 cd debs || exit 1
 
-command -v pgrep > /dev/null || SINGLETHREADED=1
+command -v pgrep > /dev/null || singlethreaded=1
 
 printf "Downloading debs\n"
-if [ -n "$SINGLETHREADED" ]; then
+if [ -n "$singlethreaded" ]; then
     while read -r i; do
         curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -g -L -s -O "$i"
     done < ../urllist.txt
 else
-    [ -z "$JOBS" ] && JOBS=16
+    [ -z "$jobs" ] && jobs=16
     while read -r i; do
-        while [ "$(pgrep -c curl)" -ge "$JOBS" ]; do
+        while [ "$(pgrep -c curl)" -ge "$jobs" ]; do
             sleep 0.1
         done
         curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -g -L -s -O "$i" &
