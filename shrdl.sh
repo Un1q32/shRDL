@@ -24,8 +24,8 @@ headers2="X-Unique-ID: 0000000000000000000000000000000000000000"
 headers3="X-Firmware: 6.1"
 headers4="User-Agent: Telesphoreo APT-HTTP/1.0.999"
 
-[ -d "$repodomain" ] || mkdir -p "$repodomain"
-cd "$repodomain" || exit 1
+[ -d "downloaded/$repodomain" ] || mkdir -p "downloaded/$repodomain"
+cd "downloaded/$repodomain" || exit 1
 :> urllist.txt
 
 if [ "$(curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -w '%{http_code}' -L -s -o Packages.bz2 "$domain/Packages.bz2")" -eq 200 ]; then
@@ -70,7 +70,7 @@ if [ -n "$singlethreaded" ]; then
 else
     [ -z "$jobs" ] && jobs=16
     while read -r i; do
-        while [ "$(pgrep -c curl)" -ge "$jobs" ]; do
+        while [ "$(pgrep curl | wc -l)" -ge "$jobs" ]; do
             sleep 0.1
         done
         curl -H "$headers1" -H "$headers2" -H "$headers3" -H "$headers4" -g -L -s -O "$i" &
