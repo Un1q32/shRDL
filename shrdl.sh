@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ -z "$1" ]; then
+    printf "Usage: %s [--no-debs] [--single-threaded] [--jobs=JOBS] <repo url>\n" "${0##*/}"
+    exit 1
+fi
+
 while [ $# -gt 0 ]; do
     case $1 in
         --no-debs) nodebs=1 ;;
@@ -7,7 +12,7 @@ while [ $# -gt 0 ]; do
         --jobs=*) jobs=${1#*=} ;;
         --jobs) jobs=$2 && shift ;;
         http://*|https://*) domain="${1%/}" && repodomain=${domain#*//} ;;
-        *) printf "Usage: %s [--no-debs] [--single-threaded] [--jobs=JOBS] <repo url>\n" "${0##*/}" ; exit 0 ;;
+        *) printf "Usage: %s [--no-debs] [--single-threaded] [--jobs=JOBS] <repo url>\n" "${0##*/}" ; exit 1 ;;
     esac
     shift
 done
